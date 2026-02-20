@@ -142,11 +142,18 @@ On Rviz, add new panel: Waypoint tools and set your waypoint
 On Rviz, set visualization:
 
 Add a path display on /nav6d/planner/path
+
 Add a MarkerArray display on /nav6d/planner/path_marker
+
 Fixed frame: map
+
 Add /Pointcloud2 or /octomap_full depends on your setting, on it sublevel topic, set the durability to transient local
+
 Add a Pose display on /nav6d/goal
+
 Add TF 
+
+Add Robotmodel display on /spacecobot/pose or any source of your model
 
 
 # Run
