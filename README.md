@@ -139,6 +139,7 @@ ros2 run nav6d_sim tf_bridge
 
 # Setting
 On Rviz, add new panel: Waypoint tools and set your waypoint 
+
 On Rviz, set visualization:
 
 Add a path display on /nav6d/planner/path
@@ -159,3 +160,5 @@ Add Robotmodel display on /spacecobot/pose or any source of your model
 # Run
 After you have done all the setting and all the terminals are running correctly
 On the waypoint plugin, publish waypoints. It will then forward to mission manager and generate trajectory based on A*
+
+troubleshooting with echo the data whatever you have missed. For example: ros2... echo.. /nav6d/planner/pose
