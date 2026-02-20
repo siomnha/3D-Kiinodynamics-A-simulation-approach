@@ -21,23 +21,25 @@ The packages are still in development and aim to replace original PD controller 
 On top of your Rviz and nav6d packages, there are still several to build
 
 1. Go to your workspace
+```
 cd ~/ros2_ws/src
+```
 
-2. Create a python package
+3. Create a python package
 ros2 pkg create nav6d_sim --build-type ament_python --dependencies rclpy geometry_msgs nav_msgs tf2_ros
 
-3. Go to node folder 
+4. Go to node folder 
 cd ~/ros2_ws/src/nav6d_sim/nav6d_sim
 
-4. Add the file in to the node folder
+5. Add the file in to the node folder
 
-5. Build the package and source it
+6. Build the package and source it
 cd ~/ros2_ws
 source /opt/ros/humble/setup.bash
 colcon build --packages-select nav6d_sim --symlink-install
 source install/setup.bash
 
-6. Verify excutable and all done
+7. Verify excutable and all done
 ros2 pkg executables nav6d_sim
 
 
