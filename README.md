@@ -5,7 +5,7 @@ This project provide a basic tutorial applying 3D kinodynamics A* algorithm deve
 
 After building the packages, it allows you to: 
 
-1.Run a basic A* algorithm in Rviz on a octomap
+1.Run 3D kinodynamic A* algorithm in Rviz on a octomap
 
 2.Pre-defined multiple waypoints your UAV want to travel
 
