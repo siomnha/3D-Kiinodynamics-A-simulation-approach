@@ -15,6 +15,7 @@ After building the packages, it allows you to:
 
 The packages are still in development and aim to replace original PD controller to ardupilot PID controller and add CraneAero model into the simulation
 
+<img width="2486" height="1411" alt="Screenshot from 2026-02-19 17-34-36" src="https://github.com/user-attachments/assets/8e807ef0-258c-40f2-87c9-3f51d3a1ccd5" />
 
 
 # nav6d_sim
