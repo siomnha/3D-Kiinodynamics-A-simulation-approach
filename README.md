@@ -4,8 +4,11 @@ This project provide a basic tutorial applying 3D kinodynamics A* algorithm deve
 
 
 After building the packages, it allows you to: 
+
 Run the algorithm in Rviz
+
 Pre-defined multiple waypoints your UAV want to travel
+
 Visualize the flight path 
 
 
