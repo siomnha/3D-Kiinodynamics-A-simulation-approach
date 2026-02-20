@@ -7,7 +7,7 @@ After building the packages, it allows you to:
 
 1.Run 3D kinodynamic A* algorithm in Rviz on a octomap
 
-2.Pre-defined multiple waypoints your UAV want to travel
+2.Pre-defined multiple waypoints your UAV want to travel easily
 
 3.Visualize the flight path 
 
