@@ -1,4 +1,4 @@
-# 3D-Kiinodynamics-A-simulation-approach
+# 3D-Kinodynamics-A-simulation-approach
 
 This project provide a basic tutorial applying 3D kinodynamics A* algorithm developed by https://github.com/ItsNotSoftware/nav6d.
 
@@ -14,3 +14,10 @@ After building the packages, it allows you to:
 
 
 The packages are still in development and aim to replace original PD controller to ardupilot PID controller and add CraneAero model into the simulation
+
+
+
+# Building
+On top of your Rviz and nav6d packages, there are still several to build
+
+
