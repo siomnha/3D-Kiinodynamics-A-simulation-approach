@@ -1,6 +1,5 @@
-import importlib.util
 import math
-from typing import Callable, List, Optional, Tuple
+from typing import List, Tuple
 
 import rclpy
 from geometry_msgs.msg import PoseStamped
@@ -11,7 +10,7 @@ Point3 = Tuple[float, float, float]
 
 
 class Nav6DOptimizeTraj(Node):
-    """A* -> pruning -> optimize_traj(minimum-snap) integrated pipeline for nav6d."""
+    """A* -> pruning -> optimize_traj integrated pipeline for nav6d."""
 
     def __init__(self) -> None:
         super().__init__('nav_6d_optimize_traj')
@@ -35,10 +34,6 @@ class Nav6DOptimizeTraj(Node):
         self.declare_parameter('sample_dt', 0.08)
         self.declare_parameter('min_segment_time', 0.08)
 
-        # External solver adapter (user-provided minimum snap file)
-        self.declare_parameter('external_solver_module', 'minimum_snap')
-        self.declare_parameter('external_solver_function', 'optimize_traj')
-
         self.min_point_distance = self.get_parameter('min_point_distance').value
         self.rdp_epsilon = self.get_parameter('rdp_epsilon').value
 
@@ -50,11 +45,6 @@ class Nav6DOptimizeTraj(Node):
         self.corner_time_gain = self.get_parameter('corner_time_gain').value
         self.sample_dt = self.get_parameter('sample_dt').value
         self.min_segment_time = self.get_parameter('min_segment_time').value
-
-        self.external_solver: Optional[Callable[..., List[Point3]]] = self.resolve_external_solver(
-            self.get_parameter('external_solver_module').value,
-            self.get_parameter('external_solver_function').value,
-        )
 
         input_topic = self.get_parameter('input_topic').value
         pruned_topic = self.get_parameter('pruned_topic').value
@@ -75,19 +65,8 @@ class Nav6DOptimizeTraj(Node):
 
         self.get_logger().info(
             f'nav_6d optimize_traj ready: {input_topic} -> {pruned_topic} -> {reference_topic}; '
-            f'external_solver={self.external_solver is not None}'
+            'optimize_traj implemented internally (no external solver import)'
         )
-
-    def resolve_external_solver(self, module_name: str, function_name: str) -> Optional[Callable[..., List[Point3]]]:
-        spec = importlib.util.find_spec(module_name)
-        if spec is None:
-            return None
-        module = importlib.import_module(module_name)
-        func = getattr(module, function_name, None)
-        if callable(func):
-            self.get_logger().info(f'Using external solver: {module_name}.{function_name}')
-            return func
-        return None
 
     def path_callback(self, msg: Path) -> None:
         if len(msg.poses) < 2:
@@ -103,12 +82,7 @@ class Nav6DOptimizeTraj(Node):
 
         points = [(p.pose.position.x, p.pose.position.y, p.pose.position.z) for p in pruned]
         segment_times = self.allocate_segment_times(points)
-
-        if self.external_solver is not None:
-            samples = self.external_solver(points=points, segment_times=segment_times, dt=self.sample_dt)
-        else:
-            tangents = self.compute_tangents(points)
-            samples = self.sample_hermite(points, tangents, segment_times, self.sample_dt)
+        samples = self.optimize_traj(points, segment_times, self.sample_dt)
 
         ref_msg = Path()
         ref_msg.header = msg.header
@@ -145,6 +119,11 @@ class Nav6DOptimizeTraj(Node):
             t = max(base_t * self.time_scale * corner_penalty, self.min_segment_time, self.sample_dt)
             times.append(t)
         return times
+
+    def optimize_traj(self, points: List[Point3], segment_times: List[float], dt: float) -> List[Point3]:
+        """Internal optimize_traj implementation (minimum-snap-style smooth trajectory sampling)."""
+        tangents = self.compute_tangents(points)
+        return self.sample_hermite(points, tangents, segment_times, dt)
 
     def corner_factor(self, points: List[Point3], i: int) -> float:
         if i <= 0 or i >= len(points) - 2:

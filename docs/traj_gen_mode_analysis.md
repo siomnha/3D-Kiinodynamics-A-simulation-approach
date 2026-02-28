@@ -50,7 +50,6 @@ When upstream access is available, compare and backfill:
 
 All these are now primarily tuned in `nav6d_sim/nav_6d_optimize_traj.py` (legacy mirror exists in `trajectory_adapter`) as ROS parameters:
 
-- `traj_mode`: use `optimize_traj` for mission-like allocation.
 - `v_ref`, `a_ref`: nominal segment-time model.
 - `max_velocity`, `max_acceleration`: safety caps for effective speed/accel assumptions.
 - `time_scale`: global aggressiveness knob (`>1.0` slower/safer, `<1.0` faster).
@@ -59,7 +58,7 @@ All these are now primarily tuned in `nav6d_sim/nav_6d_optimize_traj.py` (legacy
 - `sample_dt`: output sample density (smaller => denser trajectory).
 
 Suggested baseline for RViz then real follower integration:
-- Start: `traj_mode=optimize_traj`, `v_ref=1.2`, `a_ref=0.8`, `max_velocity=2.0`, `max_acceleration=1.5`, `time_scale=1.15`, `corner_time_gain=0.35`, `sample_dt=0.08`.
+- Start: `v_ref=1.2`, `a_ref=0.8`, `max_velocity=2.0`, `max_acceleration=1.5`, `time_scale=1.15`, `corner_time_gain=0.35`, `sample_dt=0.08`.
 - If corners overshoot: raise `corner_time_gain` and `time_scale`.
 - If too conservative: reduce `time_scale` toward `1.0`, then increase `v_ref` gradually while staying below caps.
 
@@ -78,6 +77,5 @@ Pipeline in this node:
 1. subscribe `/nav6d/planner/path`
 2. prune (duplicate removal + RDP)
 3. allocate segment time with corner penalty
-4. call external minimum-snap solver if available (`external_solver_module.external_solver_function`)
-5. fallback to internal Hermite sampling when external solver is unavailable
-6. publish `/planning/pruned_path`, `/trajectory/reference`, `/trajectory/state`, `/space_cobot/pose`
+4. run internal `optimize_traj` trajectory generation
+5. publish `/planning/pruned_path`, `/trajectory/reference`, `/trajectory/state`, `/space_cobot/pose`

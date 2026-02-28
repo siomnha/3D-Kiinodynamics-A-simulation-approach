@@ -238,7 +238,7 @@ By freezing these contracts, you can swap minimum-snap implementation or control
 ## 4) Minimum-snap integration details
 ### 4.0 Where to tune optimize_traj design parameters
 Tune these directly in `trajectory_adapter` ROS params (CLI `--ros-args -p ...` or launch file):
-- `traj_mode`: set `optimize_traj` for safer mission-like timing, `preview` for fast RViz checks.
+- `optimize_traj` is now the default integrated mode in `nav_6d_optimize_traj`.
 - `v_ref`, `a_ref`: nominal timing targets.
 - `max_velocity`, `max_acceleration`: hard caps on effective timing model.
 - `time_scale`: global slowdown/speedup factor after nominal allocation.
