@@ -98,17 +98,31 @@ ros2 run nav6d n6d_planner
 ```
 
 
-Open Path follower (Terminal 5)
+Open Path pruner (Terminal 5)
 ```
 source /opt/ros/humble/setup.bash
 source ~/ros2_ws/install/setup.bash
 
-ros2 run nav6d_sim path_follower
+ros2 run nav6d_sim path_pruner
 ```
 
+Open Trajectory adapter (Terminal 6)
+```
+source /opt/ros/humble/setup.bash
+source ~/ros2_ws/install/setup.bash
 
+ros2 run nav6d_sim trajectory_adapter
+```
 
-Open Mission manager (Terminal 6)
+Open Trajectory sampler (Terminal 7)
+```
+source /opt/ros/humble/setup.bash
+source ~/ros2_ws/install/setup.bash
+
+ros2 run nav6d_sim trajectory_sampler
+```
+
+Open Mission manager (Terminal 8)
 ```
 source /opt/ros/humble/setup.bash
 source ~/ros2_ws/install/setup.bash
@@ -116,9 +130,7 @@ source ~/ros2_ws/install/setup.bash
 ros2 run nav6d_sim mission_manager
 ```
 
-
-
-Set your tf config (Terminal 7), note that it define your UAV initial location. If in your simulation, your model jumps between initial location and the trajectory, stop this terminal before run again
+Set your tf config (Terminal 9), note that it define your UAV initial location. If in your simulation, your model jumps between initial location and the trajectory, stop this terminal before run again
 ```
 source /opt/ros/humble/setup.bash
 source ~/ros2_ws/install/setup.bash
@@ -127,8 +139,7 @@ ros2 run tf2_ros static_transform_publisher \
   -5 0.5 1.5 0 0 0 map base_link
 ```
 
-
-Open tf bridge (Terminal 8)
+Open tf bridge (Terminal 10)
 ```
 source /opt/ros/humble/setup.bash
 source ~/ros2_ws/install/setup.bash
@@ -136,6 +147,10 @@ source ~/ros2_ws/install/setup.bash
 ros2 run nav6d_sim tf_bridge
 ```
 
+(Optional legacy) Open Path follower (replays raw planner path without minimum-snap):
+```
+ros2 run nav6d_sim path_follower
+```
 
 # Setting
 On Rviz, add new panel: Waypoint tools and set your waypoint 
