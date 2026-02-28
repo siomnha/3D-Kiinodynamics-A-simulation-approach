@@ -98,15 +98,20 @@ ros2 run nav6d n6d_planner
 ```
 
 
-Open Path follower (Terminal 5)
+Open nav_6d optimize_traj integrated node (Terminal 5)
 ```
 source /opt/ros/humble/setup.bash
 source ~/ros2_ws/install/setup.bash
 
-ros2 run nav6d_sim path_follower
+ros2 run nav6d_sim nav_6d_optimize_traj --ros-args \
+  -p v_ref:=1.2 -p a_ref:=0.8 \
+  -p max_velocity:=2.0 -p max_acceleration:=1.5 \
+  -p time_scale:=1.15 -p corner_time_gain:=0.35
 ```
 
+This node contains the full chain in one place: A* input (`/nav6d/planner/path`) -> pruning -> optimize_traj/minimum-snap stage -> `/trajectory/reference` + `/trajectory/state` + `/space_cobot/pose`.
 
+Legacy modular nodes (`path_pruner`, `trajectory_sampler`) are kept for compatibility; `trajectory_adapter` has been removed in favor of integrated `nav_6d_optimize_traj`.
 
 Open Mission manager (Terminal 6)
 ```
@@ -115,8 +120,6 @@ source ~/ros2_ws/install/setup.bash
 
 ros2 run nav6d_sim mission_manager
 ```
-
-
 
 Set your tf config (Terminal 7), note that it define your UAV initial location. If in your simulation, your model jumps between initial location and the trajectory, stop this terminal before run again
 ```
@@ -127,7 +130,6 @@ ros2 run tf2_ros static_transform_publisher \
   -5 0.5 1.5 0 0 0 map base_link
 ```
 
-
 Open tf bridge (Terminal 8)
 ```
 source /opt/ros/humble/setup.bash
@@ -136,6 +138,30 @@ source ~/ros2_ws/install/setup.bash
 ros2 run nav6d_sim tf_bridge
 ```
 
+(Optional legacy) Open Path follower (replays raw planner path without minimum-snap):
+```
+ros2 run nav6d_sim path_follower
+```
+
+
+
+Quick topic checks (optional)
+```
+ros2 topic echo /planning/pruned_path --once
+ros2 topic echo /trajectory/reference --once
+ros2 topic hz /space_cobot/pose
+```
+
+Mode generator (optional, for mode-by-mode RViz replication tests)
+```
+source /opt/ros/humble/setup.bash
+source ~/ros2_ws/install/setup.bash
+
+ros2 run nav6d_sim trajectory_mode_generator --ros-args -p mode:=circle
+```
+
+Supported modes in this repo: `hover`, `line`, `circle`, `figure8`, `helix`.
+Use this when you want to validate follower/controller behavior without depending on planner output.
 
 # Setting
 On Rviz, add new panel: Waypoint tools and set your waypoint 
@@ -162,3 +188,132 @@ After you have done all the setting and all the terminals are running correctly
 On the waypoint plugin, publish waypoints. It will then forward to mission manager and generate trajectory based on A*
 
 troubleshooting with echo the data whatever you have missed. For example: ros2... echo.. /nav6d/planner/pose
+
+# A* + Minimum Snap architecture (RViz-ready, controller-decoupled)
+If your goal is **nav6d A* planning now**, and later plug in your own path follower + ArduPilot PID, use this architecture.
+
+## 1) End-to-end pipeline
+1. **Mission Manager** receives user waypoints (`/waypoints`) and sends sequential goals to nav6d (`/nav6d/goal`).
+2. **nav6d planner** computes collision-free discrete path (`/nav6d/planner/path`).
+3. **Pruning Stage (new, recommended)** applies LOS pruning or polynomial pruning to remove noisy local waypoints while preserving obstacle safety.
+4. **Integrated optimize_traj stage** in `nav_6d_optimize_traj` converts pruned path into minimum-snap-style reference segments.
+5. **Trajectory Sampler behavior** (inside integrated node) publishes by time:
+   - RViz-friendly pose for visualization
+   - reference states for future controllers
+6. **Path Follower (future plugin)** consumes reference states and outputs control setpoints.
+7. **ArduPilot Bridge (future plugin)** maps setpoints to MAVROS/MAVLink interfaces.
+
+This keeps nav6d as a pure planner and makes downstream controller stacks replaceable.
+
+## 2) Node boundary (recommended)
+### Planning layer (keep now)
+- `mission_manager` (already in this repo)
+- `nav6d` planner (external package)
+
+### Trajectory layer (add now for RViz full-chain test)
+- `path_pruner`
+  - input: `/nav6d/planner/path` (`nav_msgs/Path`)
+  - output: `/planning/pruned_path` (`nav_msgs/Path`)
+  - role: LOS pruning and/or polynomial pruning to reduce A* local waypoint noise
+- `trajectory_sampler`
+  - input: trajectory internal representation
+  - output:
+    - `/space_cobot/pose` (`geometry_msgs/PoseStamped`) for TF/RViz model movement
+    - `/trajectory/state` (reserved; pose/vel/acc/yaw reference)
+
+### Control layer (reserve for future)
+- `path_follower_plugin`
+  - input: `/trajectory/state`
+  - output: `/control/setpoint`
+- `ardupilot_bridge`
+  - input: `/control/setpoint`
+  - output: MAVROS/MAVLink topics/services
+
+## 3) Interface contract (stable topics)
+- Keep these as long-term stable interfaces:
+  - `/nav6d/goal`
+  - `/nav6d/planner/path`
+  - `/planning/pruned_path`
+  - `/trajectory/state` (new stable contract from trajectory to controller)
+  - `/control/setpoint` (new stable contract from follower to flight stack)
+
+By freezing these contracts, you can swap minimum-snap implementation or controller without touching nav6d.
+
+## 4) Minimum-snap integration details
+### 4.0 Where to tune optimize_traj design parameters
+Tune these directly in `nav_6d_optimize_traj` ROS params (CLI `--ros-args -p ...` or launch file):
+- `optimize_traj` is now the default integrated mode in `nav_6d_optimize_traj`.
+- `v_ref`, `a_ref`: nominal timing targets.
+- `max_velocity`, `max_acceleration`: hard caps on effective timing model.
+- `time_scale`: global slowdown/speedup factor after nominal allocation.
+- `corner_time_gain`: extra time added around sharp turns from pruned A* waypoints.
+- `min_segment_time`, `sample_dt`: lower bound on segment duration and trajectory sampling density.
+
+Recommended tuning order after nav6d A* + pruning:
+1. Set `max_velocity` and `max_acceleration` from vehicle/controller limits.
+2. Fit `v_ref` and `a_ref` slightly below limits for tracking margin.
+3. Increase `time_scale` if overshoot appears in RViz/follower.
+4. Increase `corner_time_gain` if turns are still too aggressive.
+5. Reduce `sample_dt` for smoother visualization/feeding downstream controllers.
+
+### 4.1 Pruning before minimum-snap (strongly recommended)
+- **LOS pruning:** keep key turning points and remove intermediate collinear/visible points.
+- **Polynomial pruning:** fit low-order curve locally and drop high-frequency zig-zag waypoints from A*.
+- Keep an obstacle-safe check after pruning to avoid over-aggressive waypoint removal.
+
+### 4.2 Input pre-processing after pruning
+- Remove remaining duplicate/near-duplicate points.
+- Optionally downsample long straight sections to reduce polynomial condition number.
+
+### 4.3 Time allocation (critical)
+For each segment i:
+- `T_i = max(dist_i / v_ref, sqrt(dist_i / a_ref))`
+- Then clamp with mission limits (`v_max`, `a_max`, optional `j_max`).
+
+### 4.4 Boundary conditions
+- Start/end velocity and acceleration default to zero for RViz simulation.
+- Keep yaw simple at first:
+  - either fixed yaw
+  - or yaw from velocity direction
+
+### 4.5 Safety after smoothing
+Because polynomial curves may leave the A* free corridor:
+- Sample smoothed trajectory at fixed `dt` (e.g., 0.05 s)
+- Collision-check sampled points against map
+- If failed: inflate timing or fall back to original A* polyline for that segment
+
+## 5) RViz full-structure test plan (what you want now)
+Run the complete chain (planning + smoothing + sampling + visualization), while still not committing to a real controller:
+
+1. waypoint plugin publishes `/waypoints`
+2. mission manager sends `/nav6d/goal`
+3. nav6d publishes `/nav6d/planner/path`
+4. path pruner publishes `/planning/pruned_path`
+5. integrated optimize_traj builds minimum-snap-style reference
+6. integrated publisher outputs `/space_cobot/pose`
+7. tf bridge broadcasts `map -> base_link`
+8. RViz shows:
+   - raw A* path (`/nav6d/planner/path`)
+   - pruned path (`/planning/pruned_path`)
+   - smoothed path (`/trajectory/reference`)
+   - RobotModel + TF motion
+
+This gives you an RViz-verifiable end-to-end architecture before adding follower and ArduPilot.
+
+## 6) Suggested message reservation for future controller/ArduPilot
+For `/trajectory/state` you can reserve fields equivalent to:
+- position `(x,y,z)`
+- velocity `(vx,vy,vz)`
+- acceleration `(ax,ay,az)`
+- yaw, yaw_rate
+- timestamp
+
+For `/control/setpoint` reserve:
+- attitude target (roll/pitch/yaw) + thrust, or
+- velocity target + yaw_rate (depending on flight stack mode)
+
+## 7) Recommended rollout phases
+- **Phase A (now):** nav6d + minimum-snap + RViz visualization chain
+- **Phase B:** replace dummy sampler with real path follower
+- **Phase C:** add ArduPilot bridge and tune PID/flight modes
+- **Phase D:** add replanning trigger + trajectory handover logic
