@@ -17,7 +17,7 @@
 ## Mapping into this repository
 
 1. Keep `path_pruner` to clean A* local noise before smoothing.
-2. Use integrated `nav_6d_optimize_traj` as the conversion stage from pruned waypoints to smooth sampled trajectory.
+2. Keep `trajectory_adapter` as the conversion stage from pruned waypoints to smooth sampled trajectory.
 3. Add mode source generator for RViz/system tests independent from planner.
 4. Keep `trajectory_sampler` as execution/output bridge toward `/space_cobot/pose` and `/trajectory/state`.
 
@@ -48,7 +48,7 @@ When upstream access is available, compare and backfill:
 
 ## Parameter tuning map for nav6d A* + pruning + optimize_traj
 
-All these are tuned in `nav6d_sim/nav_6d_optimize_traj.py` as ROS parameters:
+All these are now primarily tuned in `nav6d_sim/nav_6d_optimize_traj.py` (legacy mirror exists in `trajectory_adapter`) as ROS parameters:
 
 - `v_ref`, `a_ref`: nominal segment-time model.
 - `max_velocity`, `max_acceleration`: safety caps for effective speed/accel assumptions.
