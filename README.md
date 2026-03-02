@@ -330,3 +330,25 @@ For `/control/setpoint` reserve:
 - **Phase B:** replace dummy sampler with real path follower
 - **Phase C:** add ArduPilot bridge and tune PID/flight modes
 - **Phase D:** add replanning trigger + trajectory handover logic
+
+## Troubleshooting: no executable found
+If `ros2 run nav6d_sim nav_6d_optimize_traj` reports **no executable found**, verify package registration and entry points:
+
+```
+cd ~/ros2_ws
+source /opt/ros/humble/setup.bash
+colcon build --packages-select nav6d_sim --symlink-install
+source install/setup.bash
+ros2 pkg executables nav6d_sim
+```
+
+Expected output should include: `nav_6d_optimize_traj` (and other nodes like `mission_manager`, `tf_bridge`).
+
+If still missing, clean and rebuild:
+
+```
+cd ~/ros2_ws
+rm -rf build/nav6d_sim install/nav6d_sim log
+colcon build --packages-select nav6d_sim --symlink-install
+source install/setup.bash
+```
