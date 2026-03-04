@@ -165,12 +165,12 @@ This node contains the full chain in one place: A* input (`/nav6d/planner/path`)
 
 Legacy modular nodes (`path_pruner`, `trajectory_sampler`) are kept for compatibility; `trajectory_adapter` has been removed in favor of integrated `nav_6d_optimize_traj`.
 
-Open Mission manager (Terminal 6)
+Open Trajectory sampler (Terminal 7)
 ```
 source /opt/ros/humble/setup.bash
 source ~/ros2_ws/install/setup.bash
 
-ros2 run nav6d_sim mission_manager
+ros2 run nav6d_sim trajectory_sampler
 ```
 
 Set your tf config (Terminal 7), note that it define your UAV initial location. If in your simulation, your model jumps between initial location and the trajectory, stop this terminal before run again
