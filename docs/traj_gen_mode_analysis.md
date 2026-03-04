@@ -56,6 +56,8 @@ All these are tuned in `nav6d_sim/nav_6d_optimize_traj.py` as ROS parameters:
 - `corner_time_gain`: turn-aware penalty from local corner sharpness.
 - `min_segment_time`: prevents very short unstable segments after pruning.
 - `sample_dt`: output sample density (smaller => denser trajectory).
+- Obstacle safety margin should be configured in upstream A* occupancy inflation / collision model.
+- `nav_6d_optimize_traj` currently does not perform obstacle-distance collision checking.
 
 Suggested baseline for RViz then real follower integration:
 - Start: `v_ref=1.2`, `a_ref=0.8`, `max_velocity=2.0`, `max_acceleration=1.5`, `time_scale=1.15`, `corner_time_gain=0.35`, `sample_dt=0.08`.
@@ -79,3 +81,41 @@ Pipeline in this node:
 3. allocate segment time with corner penalty
 4. run internal `optimize_traj` trajectory generation
 5. publish `/planning/pruned_path`, `/trajectory/reference`, `/trajectory/state`, `/space_cobot/pose`
+
+
+Trigger logic is intentionally reserved for future localization + online planning integration (no time trigger added now).
+
+
+## Obstacle margin ownership and guarantee strategy
+
+- The distance margin to obstacles should be configured in the upstream A* occupancy inflation / collision model.
+- The current `nav_6d_optimize_traj` node does not guarantee obstacle clearance by itself; it only smooths/samples path geometry.
+
+Recommended guarantee strategy for future upgrade:
+1. Build inflated map with `robot_radius + safety_margin` for A* search.
+2. Build safe corridor from the inflated free space.
+3. Constrain trajectory optimization inside corridor (not only waypoint interpolation).
+4. Run dense trajectory-vs-map collision checks after optimization.
+5. If violation is detected, reject segment and trigger fallback/replan handover.
+
+
+
+## Exact tuning locations (A* margin + post-check hook)
+
+1. **A* distance margin / map inflation**
+   - Node: `/n6d_planner` (external nav6d package).
+   - Tune planner parameters in nav6d launch/config (or runtime `ros2 param set`):
+     - `robot_radius`
+     - `inflation_radius`
+     - `safety_margin` (or equivalent name in your nav6d version)
+
+2. **Post-processed trajectory margin check hook (this repo)**
+   - File: `nav6d_sim/nav_6d_optimize_traj.py`
+   - Hook point: inside `path_callback`, right after `samples = self.optimize_traj(points, segment_times, self.sample_dt)` and before publishing `/trajectory/reference`.
+   - Use inflated map/distance field to compute min clearance on sampled points; reject or fallback if margin is violated.
+
+
+Current baseline used in README examples for validation runs:
+- `robot_radius = 0.0`
+- `inflation_radius = 1.2`
+- Tune upward/downward afterward based on map scale and corridor feasibility.

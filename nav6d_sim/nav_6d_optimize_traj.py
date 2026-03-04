@@ -36,7 +36,6 @@ class Nav6DOptimizeTraj(Node):
 
         self.min_point_distance = self.get_parameter('min_point_distance').value
         self.rdp_epsilon = self.get_parameter('rdp_epsilon').value
-
         self.v_ref = self.get_parameter('v_ref').value
         self.a_ref = self.get_parameter('a_ref').value
         self.max_velocity = self.get_parameter('max_velocity').value
@@ -65,6 +64,7 @@ class Nav6DOptimizeTraj(Node):
 
         self.get_logger().info(
             f'nav_6d optimize_traj ready: {input_topic} -> {pruned_topic} -> {reference_topic}; '
+            'obstacle safe margin is owned by upstream A* map inflation; '
             'optimize_traj implemented internally (no external solver import)'
         )
 

@@ -110,6 +110,43 @@ source ~/ros2_ws/install/setup.bash
 ros2 run nav6d n6d_planner
 ```
 
+### Configure A* obstacle distance margin (recommended)
+
+Set obstacle margin in the **planner / occupancy inflation layer**, not in trajectory post-processing.
+
+1. Inspect available planner params:
+```
+ros2 param list /n6d_planner
+```
+
+2. Check candidate margin-related params (names depend on nav6d version):
+```
+ros2 param get /n6d_planner robot_radius
+ros2 param get /n6d_planner inflation_radius
+ros2 param get /n6d_planner safety_margin
+```
+
+3. Set margin (example values):
+```
+ros2 param set /n6d_planner robot_radius 0.0
+ros2 param set /n6d_planner inflation_radius 1.2
+```
+
+If your planner uses different parameter names, use `ros2 param list /n6d_planner` and set the equivalent obstacle inflation/safety fields.
+
+4. Double validation (recommended before flight tests):
+```
+ros2 param get /n6d_planner robot_radius
+ros2 param get /n6d_planner inflation_radius
+```
+Expected current baseline in this repo guide:
+- `robot_radius = 0.0`
+- `inflation_radius = 1.2`
+
+**Exact edit points (what to change):**
+- **A* margin / inflation (required):** change parameters on node `/n6d_planner` (typically in nav6d launch file or via `ros2 param set`).
+- **Primary knobs:** `robot_radius`, `inflation_radius`, and planner-specific `safety_margin` equivalent.
+- **Current limit in this repo:** `nav_6d_optimize_traj` does not provide obstacle-distance guarantee parameters; it only smooths/samples trajectory geometry.
 
 Open nav_6d optimize_traj integrated node (Terminal 5)
 ```
@@ -123,6 +160,8 @@ ros2 run nav6d_sim nav_6d_optimize_traj --ros-args \
 ```
 
 This node contains the full chain in one place: A* input (`/nav6d/planner/path`) -> pruning -> optimize_traj/minimum-snap stage -> `/trajectory/reference` + `/trajectory/state` + `/space_cobot/pose`.
+
+> Safety note: obstacle clearance margin should be configured in the upstream A* planner/map inflation stage. `nav_6d_optimize_traj` is a post-processor and does not do obstacle-distance collision checking by itself.
 
 Legacy modular nodes (`path_pruner`, `trajectory_sampler`) are kept for compatibility; `trajectory_adapter` has been removed in favor of integrated `nav_6d_optimize_traj`.
 
@@ -294,6 +333,23 @@ Because polynomial curves may leave the A* free corridor:
 - Sample smoothed trajectory at fixed `dt` (e.g., 0.05 s)
 - Collision-check sampled points against map
 - If failed: inflate timing or fall back to original A* polyline for that segment
+
+Current repo status:
+- Obstacle-safe margin guarantee is provided by A* occupancy/inflation configuration.
+- `nav_6d_optimize_traj` currently performs geometric smoothing/sampling only.
+- Replanning trigger and trajectory handover logic are intentionally reserved for future localization + online planning integration.
+
+
+
+### 4.6 How to keep optimized trajectory inside safety margin
+For future online deployment (simulation + real robot), recommended order:
+
+1. **A* hard safety guarantee**: use inflated occupancy (robot radius + margin) so raw A* path is already obstacle-safe.
+2. **Corridor-constrained optimization**: optimize inside a convex safe corridor built from inflated map/free-space decomposition.
+3. **Dense post-check**: sample optimized trajectory densely and perform map collision checking with same inflated map.
+   - In this repo, add this check at `nav6d_sim/nav_6d_optimize_traj.py` inside `path_callback`, right after `samples = self.optimize_traj(...)` and before publishing `/trajectory/reference`.
+4. **Fallback policy**: if any sample violates margin, reject this segment and fall back to A* polyline or re-run optimization with larger timing / tighter constraints.
+5. **Replan hook reserved**: keep trigger/handover interface reserved for future localization-driven online replanning (not implemented yet in this repo).
 
 ## 5) RViz full-structure test plan (what you want now)
 Run the complete chain (planning + smoothing + sampling + visualization), while still not committing to a real controller:
