@@ -27,6 +27,8 @@ setup(
             'trajectory_sampler = nav6d_sim.trajectory_sampler:main',
             'nav_6d_optimize_traj = nav6d_sim.nav_6d_optimize_traj:main',
             'mavproxy_waypoint_loader = nav6d_sim.mavproxy_waypoint_loader:main',
+            'snapshot_manager = nav6d_sim.snapshot_manager:main',
+            'replan_monitor = nav6d_sim.replan_monitor:main',
         ],
     },
 )
