@@ -26,6 +26,7 @@ setup(
             'trajectory_mode_generator = nav6d_sim.trajectory_mode_generator:main',
             'trajectory_sampler = nav6d_sim.trajectory_sampler:main',
             'nav_6d_optimize_traj = nav6d_sim.nav_6d_optimize_traj:main',
+            'mavproxy_waypoint_loader = nav6d_sim.mavproxy_waypoint_loader:main',
         ],
     },
 )
