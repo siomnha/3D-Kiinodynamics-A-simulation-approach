@@ -94,6 +94,7 @@ class SnapshotManager(Node):
         return self.output_dir / f'{self.snapshot_prefix}_{self.counter:05d}.bt'
 
     def run_octomap_saver(self, path: Path) -> bool:
+<<<<<<< codex/merge-3d-a-with-path-planning-4bx85b
         saver_cmds = [
             [
                 'ros2', 'run', 'octomap_server', 'octomap_saver_node',
@@ -116,6 +117,29 @@ class SnapshotManager(Node):
                 continue
         self.get_logger().error('No working octomap saver executable found (tried octomap_saver_node, octomap_saver).')
         return False
+=======
+        cmd = [
+            'ros2',
+            'run',
+            'octomap_server',
+            'octomap_saver',
+            '-f',
+            str(path),
+            '--ros-args',
+            '-r',
+            f'octomap_binary:={self.octomap_topic}',
+        ]
+        self.get_logger().info(f'Saving snapshot -> {path}')
+        try:
+            subprocess.run(cmd, check=True, timeout=self.saver_timeout_s)
+            return True
+        except subprocess.TimeoutExpired:
+            self.get_logger().error('octomap_saver timed out.')
+            return False
+        except subprocess.CalledProcessError as exc:
+            self.get_logger().error(f'octomap_saver failed: {exc}')
+            return False
+>>>>>>> main
 
     def prune_old_snapshots(self) -> None:
         if self.mode != 'rolling' or self.max_snapshots <= 0:
