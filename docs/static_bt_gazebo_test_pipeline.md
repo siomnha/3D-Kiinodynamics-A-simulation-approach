@@ -74,7 +74,23 @@ Think of this as your **button press** step:
 
 ```bash
 source /opt/ros/humble/setup.bash
+<<<<<<< codex/merge-3d-a-with-path-planning-4bx85b
+# check exact executable name on your machine
+ros2 pkg executables octomap_server
+
+# most Humble installs use octomap_saver_node:
+ros2 run octomap_server octomap_saver_node --ros-args \
+  -p octomap_path:=/absolute/path/static_map.bt
+```
+
+If `octomap_saver_node` is not listed, install package binaries and retry:
+```bash
+sudo apt update
+sudo apt install ros-humble-octomap-server
+ros2 pkg executables octomap_server
+=======
 ros2 run octomap_server octomap_saver -f /absolute/path/static_map.bt
+>>>>>>> main
 ```
 
 When to run:
