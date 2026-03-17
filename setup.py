@@ -30,6 +30,7 @@ setup(
             'snapshot_manager = nav6d_sim.snapshot_manager:main',
             'replan_monitor = nav6d_sim.replan_monitor:main',
             'tf_to_pose_bridge = nav6d_sim.tf_to_pose_bridge:main',
+            'map_world_tf_bridge = nav6d_sim.map_world_tf_bridge:main',
         ],
     },
 )
