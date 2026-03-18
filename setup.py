@@ -32,6 +32,7 @@ setup(
             'tf_to_pose_bridge = nav6d_sim.tf_to_pose_bridge:main',
             'map_world_tf_bridge = nav6d_sim.map_world_tf_bridge:main',
             'ardupilot_mavros_setpoint_bridge = nav6d_sim.ardupilot_mavros_setpoint_bridge:main',
+            'voxel_filter_optimized = nav6d_sim.voxel_filter_optimized:main',
         ],
     },
 )

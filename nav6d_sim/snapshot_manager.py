@@ -115,11 +115,8 @@ class SnapshotManager(Node):
             except subprocess.CalledProcessError:
                 continue
         self.get_logger().error('No working octomap saver executable found (tried octomap_saver_node, octomap_saver).')
-<<<<<<< codex/merge-3d-a-with-path-planning-qdbiel
         return False
-=======
-
->>>>>>> main
+        return False
 
     def prune_old_snapshots(self) -> None:
         if self.mode != 'rolling' or self.max_snapshots <= 0:
