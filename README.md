@@ -122,32 +122,32 @@ ros2 param list /n6d_planner
 2. Check candidate margin-related params (names depend on nav6d version):
 ```
 ros2 param get /n6d_planner robot_radius
-ros2 param get /n6d_planner inflation_radius
+ros2 param get /n6d_planner inflated_radius
 ros2 param get /n6d_planner safety_margin
 ```
 
 3. Set margin (example values):
 ```
-ros2 param set /n6d_planner robot_radius 0.0
-ros2 param set /n6d_planner inflation_radius 1.2
+ros2 param set /n6d_planner robot_radius 2.0
+ros2 param set /n6d_planner inflated_radius 1.2
 ```
 
 If your planner uses different parameter names, use `ros2 param list /n6d_planner` and set the equivalent obstacle inflation/safety fields.
 
-If your current nav6d build does not expose `inflation_radius`, see `docs/nav6d_planner_margin_patch.md` for the required core-planner patch pattern and the example params file at `config/nav6d_planner_params.example.yaml`.
+If your current nav6d build does not expose `inflated_radius`, see `docs/nav6d_planner_margin_patch.md` for the required core-planner patch pattern and the example params file at `config/nav6d_planner_params.example.yaml`.
 
 4. Double validation (recommended before flight tests):
 ```
 ros2 param get /n6d_planner robot_radius
-ros2 param get /n6d_planner inflation_radius
+ros2 param get /n6d_planner inflated_radius
 ```
 Expected current baseline in this repo guide:
-- `robot_radius = 0.0`
-- `inflation_radius = 1.2`
+- `robot_radius = 2.0`
+- `inflated_radius = 1.2`
 
 **Exact edit points (what to change):**
 - **A* margin / inflation (required):** change parameters on node `/n6d_planner` (typically in nav6d launch file or via `ros2 param set`).
-- **Primary knobs:** `robot_radius`, `inflation_radius`, and planner-specific `safety_margin` equivalent.
+- **Primary knobs:** `robot_radius`, `inflated_radius`, and planner-specific `safety_margin` equivalent.
 - **Current limit in this repo:** `nav_6d_optimize_traj` does not provide obstacle-distance guarantee parameters; it only smooths/samples trajectory geometry.
 
 Open nav_6d optimize_traj integrated node (Terminal 5)
