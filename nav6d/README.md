@@ -138,10 +138,12 @@ Parameters are managed via the YAML configuration file.
 | `goal_topic`          | Goal pose topic                           | `/nav6d/goal`                 |
 | `path_topic`          | Planned path output topic                 | `/nav6d/planner/path`         |
 | `map_frame`           | Frame ID for path poses                   | `map`                         |
-| `robot_radius`        | Collision model radius (m)                | `0.35`                        |
+| `robot_radius`        | Collision model radius (m)                | `2.0`                         |
+| `inflated_radius`     | Extra planner-side safety buffer (m)      | `1.2`                         |
 | `occupancy_threshold` | Probability threshold for occupied voxels | `0.5`                         |
 | `max_search_range`    | Maximum search distance (m)               | `15.0`                        |
-| `max_expansions`      | A* node expansion limit                   | `60000`                       |
+| `max_expansions`      | A* node expansion limit                   | `200000`                      |
+| `search_step_multiplier` | A* neighbor step in map cells         | `2`                           |
 | `line_sample_step`    | Step size for line feasibility checks (m) | `0.25`                        |
 | `slerp_orientation`   | SLERP interpolate start→goal orientation  | `true`                       |
 | `debug_markers`       | Enable RViz path visualization                 | `true`                        |

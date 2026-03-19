@@ -9,10 +9,12 @@ nav6d:
       map_frame: world                         # TF frame in which path poses are expressed
 
       # Collision model and search limits.
-      robot_radius: 0.40                       # Radius (m) used to inflate obstacles during collision checks
+      robot_radius: 2.0                        # Physical collision radius (m) of the robot footprint
+      inflated_radius: 1.2                     # Extra planner-side safety buffer (m) added on top of robot_radius
       occupancy_threshold: 0.5                 # Voxel occupancy probability treated as occupied
       max_search_range: 25.0                   # Maximum straight-line distance (m) the planner will search
-      max_expansions: 60000                    # A* node expansion cap to avoid runaway searches
+      max_expansions: 200000                   # A* node expansion cap to avoid runaway searches
+      search_step_multiplier: 2                # Number of OctoMap cells per A* neighbor step (higher is faster/coarser)
       line_sample_step: 0.5                    # Spacing (m) used when testing straight-line feasibility
 
       # Orientation handling.
