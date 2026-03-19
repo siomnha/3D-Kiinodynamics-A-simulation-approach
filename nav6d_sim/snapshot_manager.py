@@ -116,7 +116,6 @@ class SnapshotManager(Node):
                 continue
         self.get_logger().error('No working octomap saver executable found (tried octomap_saver_node, octomap_saver).')
         return False
-        return False
 
     def prune_old_snapshots(self) -> None:
         if self.mode != 'rolling' or self.max_snapshots <= 0:
