@@ -134,6 +134,8 @@ ros2 param set /n6d_planner inflation_radius 1.2
 
 If your planner uses different parameter names, use `ros2 param list /n6d_planner` and set the equivalent obstacle inflation/safety fields.
 
+If your current nav6d build does not expose `inflation_radius`, see `docs/nav6d_planner_margin_patch.md` for the required core-planner patch pattern and the example params file at `config/nav6d_planner_params.example.yaml`.
+
 4. Double validation (recommended before flight tests):
 ```
 ros2 param get /n6d_planner robot_radius
