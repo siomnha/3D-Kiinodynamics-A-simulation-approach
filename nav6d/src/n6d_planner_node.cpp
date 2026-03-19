@@ -68,6 +68,16 @@ double squared_distance(const octomap::point3d& a, const octomap::point3d& b) {
     return dx * dx + dy * dy + dz * dz;
 }
 
+// Squared distance from a point to an axis-aligned cube centered at `cube_center`.
+double squared_distance_to_cube(const octomap::point3d& p, const octomap::point3d& cube_center,
+                                double cube_size) {
+    const double half = cube_size * 0.5;
+    const double dx = std::max(std::abs(static_cast<double>(p.x() - cube_center.x())) - half, 0.0);
+    const double dy = std::max(std::abs(static_cast<double>(p.y() - cube_center.y())) - half, 0.0);
+    const double dz = std::max(std::abs(static_cast<double>(p.z() - cube_center.z())) - half, 0.0);
+    return dx * dx + dy * dy + dz * dz;
+}
+
 // Bookkeeping entry stored in the A* priority queue.
 struct QueueEntry {
     key_id_t id{};
@@ -603,24 +613,24 @@ class N6dPlanner : public rclcpp::Node {
     // Brute-force collision checks that dilate occupied voxels with a configurable radius.
     bool is_collision_free(const octomap::point3d& p) const {
         if (!octree_) return false;
-        const double res = octree_->getResolution();
         const double clearance_radius = robot_radius_ + inflated_radius_;
-        const int r_cells = std::max(1, static_cast<int>(std::ceil(clearance_radius / res)));
+        const double clearance_radius_sq = clearance_radius * clearance_radius;
+        const octomap::point3d bbx_min = p - octomap::point3d(clearance_radius, clearance_radius,
+                                                              clearance_radius);
+        const octomap::point3d bbx_max = p + octomap::point3d(clearance_radius, clearance_radius,
+                                                              clearance_radius);
 
-        // Check all voxels within the robot radius plus extra safety buffer.
-        /* Iterate over every voxel inside the inflated radius and check occupancy. */
-        for (int dx = -r_cells; dx <= r_cells; ++dx)
-            for (int dy = -r_cells; dy <= r_cells; ++dy)
-                for (int dz = -r_cells; dz <= r_cells; ++dz) {
-                    // Skip voxels outside the clearance radius.
-                    const octomap::point3d s = p + octomap::point3d(dx * static_cast<float>(res),
-                                                                    dy * static_cast<float>(res),
-                                                                    dz * static_cast<float>(res));
-                    if (squared_distance(s, p) > clearance_radius * clearance_radius) continue;
-                    octomap::OcTreeNode* node = octree_->search(s);
-                    if (!node) continue;
-                    if (node->getOccupancy() >= occupancy_threshold_) return false;
-                }
+        // Scan only occupied leaves inside the nearby bounding box instead of every sampled voxel
+        // in the radius, which keeps inflated-radius checks tractable for larger margins.
+        for (auto it = octree_->begin_leafs_bbx(bbx_min, bbx_max), end = octree_->end_leafs_bbx();
+             it != end; ++it) {
+            if (it->getOccupancy() < occupancy_threshold_) continue;
+
+            const octomap::point3d occ_center(it.getX(), it.getY(), it.getZ());
+            if (squared_distance_to_cube(p, occ_center, it.getSize()) <= clearance_radius_sq) {
+                return false;
+            }
+        }
         return true;
     }
 
