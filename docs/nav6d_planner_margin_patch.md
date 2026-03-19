@@ -7,7 +7,7 @@ This repository does **not** contain the core `nav6d` C++ planner source for `n6
 Use these planner values for your current vehicle assumptions:
 
 - `robot_radius = 2.0`
-- `inflation_radius = 1.2`
+- `inflated_radius = 1.2`
 - `max_expansions = 200000`
 
 Recommended YAML example:
@@ -16,7 +16,7 @@ Recommended YAML example:
 /n6d_planner:
   ros__parameters:
     robot_radius: 2.0
-    inflation_radius: 1.2
+    inflated_radius: 1.2
     max_expansions: 200000
 ```
 
@@ -25,18 +25,18 @@ An example file is included in this repo at `config/nav6d_planner_params.example
 ## What each parameter does
 
 - `robot_radius`: the physical collision radius of the drone used by the planner.
-- `inflation_radius`: an additional safety buffer around occupied cells beyond the robot radius.
+- `inflated_radius`: an additional safety buffer around occupied cells beyond the robot radius.
 - `max_expansions`: the A* search budget; larger values allow harder detours at higher computation cost.
 
 A useful mental model is:
 
 ```text
-effective_clearance_radius = robot_radius + inflation_radius
+effective_clearance_radius = robot_radius + inflated_radius
 ```
 
-## How to add `inflation_radius` to the core algorithm
+## How to add `inflated_radius` to the core algorithm
 
-If your current `n6d_planner` only exposes `robot_radius`, add `inflation_radius` as a separate ROS parameter in the planner node and use the sum of both when checking occupancy clearance.
+If your current `n6d_planner` only exposes `robot_radius`, add `inflated_radius` as a separate ROS parameter in the planner node and use the sum of both when checking occupancy clearance.
 
 ### 1. Declare and read the parameter in the planner node
 
@@ -44,11 +44,11 @@ In the `n6d_planner` constructor (often `node.cpp`, `planner_node.cpp`, or simil
 
 ```cpp
 this->declare_parameter<double>("robot_radius", 2.0);
-this->declare_parameter<double>("inflation_radius", 1.2);
+this->declare_parameter<double>("inflated_radius", 1.2);
 this->declare_parameter<int>("max_expansions", 200000);
 
 robot_radius_ = this->get_parameter("robot_radius").as_double();
-inflation_radius_ = this->get_parameter("inflation_radius").as_double();
+inflated_radius_ = this->get_parameter("inflated_radius").as_double();
 max_expansions_ = this->get_parameter("max_expansions").as_int();
 ```
 
@@ -56,7 +56,7 @@ Add a new member variable in the planner class:
 
 ```cpp
 double robot_radius_{2.0};
-double inflation_radius_{1.2};
+double inflated_radius_{1.2};
 int max_expansions_{200000};
 ```
 
@@ -65,7 +65,7 @@ int max_expansions_{200000};
 Wherever the planner currently checks whether a point, node, or edge is too close to occupied cells, replace use of only `robot_radius_` with the combined margin:
 
 ```cpp
-const double clearance_radius = robot_radius_ + inflation_radius_;
+const double clearance_radius = robot_radius_ + inflated_radius_;
 ```
 
 Then use `clearance_radius` for occupancy / distance checks.
@@ -91,7 +91,7 @@ change it to:
 
 ```cpp
 bool Planner::isStateValid(const Eigen::Vector3d & p) const {
-  const double clearance_radius = robot_radius_ + inflation_radius_;
+  const double clearance_radius = robot_radius_ + inflated_radius_;
   return map_->isFreeSphere(p, clearance_radius);
 }
 ```
@@ -115,16 +115,16 @@ If the log still prints a hard-coded number after `ros2 param set`, the planner 
 
 ### 5. Optional: support live parameter updates
 
-If you want runtime updates from `ros2 param set`, register a parameter callback and refresh the cached class members when `robot_radius`, `inflation_radius`, or `max_expansions` changes.
+If you want runtime updates from `ros2 param set`, register a parameter callback and refresh the cached class members when `robot_radius`, `inflated_radius`, or `max_expansions` changes.
 
 ## Launching with persistent values
 
-Once the core planner supports `inflation_radius`, launch with:
+Once the core planner supports `inflated_radius`, launch with:
 
 ```bash
 ros2 run nav6d n6d_planner --ros-args \
   -p robot_radius:=2.0 \
-  -p inflation_radius:=1.2 \
+  -p inflated_radius:=1.2 \
   -p max_expansions:=200000
 ```
 

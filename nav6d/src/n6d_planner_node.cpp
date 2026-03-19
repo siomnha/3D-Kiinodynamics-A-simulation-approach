@@ -68,6 +68,16 @@ double squared_distance(const octomap::point3d& a, const octomap::point3d& b) {
     return dx * dx + dy * dy + dz * dz;
 }
 
+// Squared distance from a point to an axis-aligned cube centered at `cube_center`.
+double squared_distance_to_cube(const octomap::point3d& p, const octomap::point3d& cube_center,
+                                double cube_size) {
+    const double half = cube_size * 0.5;
+    const double dx = std::max(std::abs(static_cast<double>(p.x() - cube_center.x())) - half, 0.0);
+    const double dy = std::max(std::abs(static_cast<double>(p.y() - cube_center.y())) - half, 0.0);
+    const double dz = std::max(std::abs(static_cast<double>(p.z() - cube_center.z())) - half, 0.0);
+    return dx * dx + dy * dy + dz * dz;
+}
+
 // Bookkeeping entry stored in the A* priority queue.
 struct QueueEntry {
     key_id_t id{};
@@ -98,10 +108,11 @@ class N6dPlanner : public rclcpp::Node {
 
         // Planner parameters
         map_frame_ = declare_parameter<std::string>("map_frame", "map");
-        robot_radius_ = declare_parameter("robot_radius", 0.35);
+        robot_radius_ = declare_parameter("robot_radius", 2.0);
+        inflated_radius_ = declare_parameter("inflated_radius", 1.2);
         occupancy_threshold_ = declare_parameter("occupancy_threshold", 0.5);
         max_search_range_ = declare_parameter("max_search_range", 15.0);
-        max_expansions_ = declare_parameter("max_expansions", 60000);
+        max_expansions_ = declare_parameter("max_expansions", 200000);
         line_sample_step_ = declare_parameter("line_sample_step", 0.25);
         slerp_orientation_ = declare_parameter("slerp_orientation", false);
         debug_markers_ = declare_parameter("debug_markers", true);
@@ -602,23 +613,24 @@ class N6dPlanner : public rclcpp::Node {
     // Brute-force collision checks that dilate occupied voxels with a configurable radius.
     bool is_collision_free(const octomap::point3d& p) const {
         if (!octree_) return false;
-        const double res = octree_->getResolution();
-        const int r_cells = std::max(1, static_cast<int>(std::ceil(robot_radius_ / res)));
+        const double clearance_radius = robot_radius_ + inflated_radius_;
+        const double clearance_radius_sq = clearance_radius * clearance_radius;
+        const octomap::point3d bbx_min = p - octomap::point3d(clearance_radius, clearance_radius,
+                                                              clearance_radius);
+        const octomap::point3d bbx_max = p + octomap::point3d(clearance_radius, clearance_radius,
+                                                              clearance_radius);
 
-        // Check all voxels within the robot radius.
-        /* Iterate over every voxel inside the inflated radius and check occupancy. */
-        for (int dx = -r_cells; dx <= r_cells; ++dx)
-            for (int dy = -r_cells; dy <= r_cells; ++dy)
-                for (int dz = -r_cells; dz <= r_cells; ++dz) {
-                    // Skip voxels outside the robot radius.
-                    const octomap::point3d s = p + octomap::point3d(dx * static_cast<float>(res),
-                                                                    dy * static_cast<float>(res),
-                                                                    dz * static_cast<float>(res));
-                    if (squared_distance(s, p) > robot_radius_ * robot_radius_) continue;
-                    octomap::OcTreeNode* node = octree_->search(s);
-                    if (!node) continue;
-                    if (node->getOccupancy() >= occupancy_threshold_) return false;
-                }
+        // Scan only occupied leaves inside the nearby bounding box instead of every sampled voxel
+        // in the radius, which keeps inflated-radius checks tractable for larger margins.
+        for (auto it = octree_->begin_leafs_bbx(bbx_min, bbx_max), end = octree_->end_leafs_bbx();
+             it != end; ++it) {
+            if (it->getOccupancy() < occupancy_threshold_) continue;
+
+            const octomap::point3d occ_center(it.getX(), it.getY(), it.getZ());
+            if (squared_distance_to_cube(p, occ_center, it.getSize()) <= clearance_radius_sq) {
+                return false;
+            }
+        }
         return true;
     }
 
@@ -780,10 +792,11 @@ class N6dPlanner : public rclcpp::Node {
     std::optional<geometry_msgs::msg::PoseStamped> pending_goal_;
 
     // params
-    double robot_radius_{0.35};        // Collision model radius (m).
+    double robot_radius_{2.0};         // Collision model radius (m).
+    double inflated_radius_{1.2};      // Additional planner-side collision buffer (m).
     double occupancy_threshold_{0.5};  // Occupancy probability treated as an obstacle.
     double max_search_range_{15.0};    // Maximum allowed straight-line distance (m).
-    int max_expansions_{60000};        // Safety limit on A* expansions.
+    int max_expansions_{200000};       // Safety limit on A* expansions.
     double line_sample_step_{0.25};    // Step size (m) for straight-line feasibility tests.
     std::string map_frame_{"map"};     // Output frame id.
     bool slerp_orientation_{false};    // Interpolate orientation with SLERP when true.
