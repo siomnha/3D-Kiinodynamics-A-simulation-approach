@@ -106,7 +106,7 @@ Recommended guarantee strategy for future upgrade:
    - Node: `/n6d_planner` (external nav6d package).
    - Tune planner parameters in nav6d launch/config (or runtime `ros2 param set`):
      - `robot_radius`
-     - `inflation_radius`
+     - `inflated_radius`
      - `safety_margin` (or equivalent name in your nav6d version)
 
 2. **Post-processed trajectory margin check hook (this repo)**
@@ -116,6 +116,6 @@ Recommended guarantee strategy for future upgrade:
 
 
 Current baseline used in README examples for validation runs:
-- `robot_radius = 0.0`
-- `inflation_radius = 1.2`
+- `robot_radius = 2.0`
+- `inflated_radius = 1.2`
 - Tune upward/downward afterward based on map scale and corridor feasibility.

@@ -1,5 +1,5 @@
 /n6d_planner:
   ros__parameters:
     robot_radius: 2.0
-    inflation_radius: 1.2
+    inflated_radius: 1.2
     max_expansions: 200000
