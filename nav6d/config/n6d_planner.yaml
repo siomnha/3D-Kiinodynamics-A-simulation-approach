@@ -14,6 +14,7 @@ nav6d:
       occupancy_threshold: 0.5                 # Voxel occupancy probability treated as occupied
       max_search_range: 25.0                   # Maximum straight-line distance (m) the planner will search
       max_expansions: 200000                   # A* node expansion cap to avoid runaway searches
+      search_step_multiplier: 2                # Number of OctoMap cells per A* neighbor step (higher is faster/coarser)
       line_sample_step: 0.5                    # Spacing (m) used when testing straight-line feasibility
 
       # Orientation handling.

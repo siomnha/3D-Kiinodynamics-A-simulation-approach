@@ -113,6 +113,7 @@ class N6dPlanner : public rclcpp::Node {
         occupancy_threshold_ = declare_parameter("occupancy_threshold", 0.5);
         max_search_range_ = declare_parameter("max_search_range", 15.0);
         max_expansions_ = declare_parameter("max_expansions", 200000);
+        search_step_multiplier_ = declare_parameter("search_step_multiplier", 2);
         line_sample_step_ = declare_parameter("line_sample_step", 0.25);
         slerp_orientation_ = declare_parameter("slerp_orientation", false);
         debug_markers_ = declare_parameter("debug_markers", true);
@@ -342,11 +343,12 @@ class N6dPlanner : public rclcpp::Node {
         const double max_range2 = (max_search_range_ > 0.0)
                                       ? max_search_range_ * max_search_range_
                                       : std::numeric_limits<double>::infinity();
+        const int search_step_cells = std::max(1, search_step_multiplier_);
 
         // Enumerate the 26 neighbor directions (von Neumann + diagonals) scaled by map resolution.
         std::vector<octomap::point3d> dirs;
         dirs.reserve(26);
-        const float step = static_cast<float>(res);
+        const float step = static_cast<float>(res * static_cast<double>(search_step_cells));
         /* Enumerate all 26-connected neighbor directions (scaled later by resolution). */
         for (int dx = -1; dx <= 1; ++dx)
             for (int dy = -1; dy <= 1; ++dy)
@@ -390,6 +392,14 @@ class N6dPlanner : public rclcpp::Node {
                 reconstruct_path(goal_id, start_id, parent, key_of, result_path);
                 return true;
             }
+            if (euclidean(cur_c, goal_coord) <= static_cast<double>(step) &&
+                is_line_free(cur_c, goal_coord)) {
+                reconstruct_path(cur.id, start_id, parent, key_of, result_path);
+                if (result_path.empty() || key_to_id(result_path.back()) != goal_id) {
+                    result_path.push_back(goal_key);
+                }
+                return true;
+            }
 
             closed.insert(cur.id);
 
@@ -408,6 +418,7 @@ class N6dPlanner : public rclcpp::Node {
                 const key_id_t nb_id = key_to_id(nb_key);
                 if (closed.count(nb_id)) continue;       // already expanded
                 if (!is_collision_free(nb_c)) continue;  // occupied voxel
+                if (!is_line_free(cur_c, nb_c)) continue;  // edge crosses obstacle
 
                 // Tentative g cost through current node.
                 const double tentative_g = path_costs[cur.id] + euclidean(cur_c, nb_c);
@@ -797,6 +808,7 @@ class N6dPlanner : public rclcpp::Node {
     double occupancy_threshold_{0.5};  // Occupancy probability treated as an obstacle.
     double max_search_range_{15.0};    // Maximum allowed straight-line distance (m).
     int max_expansions_{200000};       // Safety limit on A* expansions.
+    int search_step_multiplier_{2};    // Search on a coarser lattice measured in map cells.
     double line_sample_step_{0.25};    // Step size (m) for straight-line feasibility tests.
     std::string map_frame_{"map"};     // Output frame id.
     bool slerp_orientation_{false};    // Interpolate orientation with SLERP when true.

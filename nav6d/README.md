@@ -143,6 +143,7 @@ Parameters are managed via the YAML configuration file.
 | `occupancy_threshold` | Probability threshold for occupied voxels | `0.5`                         |
 | `max_search_range`    | Maximum search distance (m)               | `15.0`                        |
 | `max_expansions`      | A* node expansion limit                   | `200000`                      |
+| `search_step_multiplier` | A* neighbor step in map cells         | `2`                           |
 | `line_sample_step`    | Step size for line feasibility checks (m) | `0.25`                        |
 | `slerp_orientation`   | SLERP interpolate start→goal orientation  | `true`                       |
 | `debug_markers`       | Enable RViz path visualization                 | `true`                        |
