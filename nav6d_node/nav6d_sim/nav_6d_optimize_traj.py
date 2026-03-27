@@ -33,7 +33,10 @@ class Nav6DOptimizeTraj(Node):
         self.declare_parameter('corner_time_gain', 0.35)
         self.declare_parameter('sample_dt', 0.08)
         self.declare_parameter('min_segment_time', 0.08)
+        self.declare_parameter('resume_on_replan', False)
         self.declare_parameter('resume_tail_restart_points', 2)
+        self.declare_parameter('resume_max_backtrack_points', 2)
+        self.declare_parameter('force_start_from_last_state', True)
 
         self.min_point_distance = self.get_parameter('min_point_distance').value
         self.rdp_epsilon = self.get_parameter('rdp_epsilon').value
@@ -45,7 +48,10 @@ class Nav6DOptimizeTraj(Node):
         self.corner_time_gain = self.get_parameter('corner_time_gain').value
         self.sample_dt = self.get_parameter('sample_dt').value
         self.min_segment_time = self.get_parameter('min_segment_time').value
+        self.resume_on_replan = bool(self.get_parameter('resume_on_replan').value)
         self.resume_tail_restart_points = int(self.get_parameter('resume_tail_restart_points').value)
+        self.resume_max_backtrack_points = int(self.get_parameter('resume_max_backtrack_points').value)
+        self.force_start_from_last_state = bool(self.get_parameter('force_start_from_last_state').value)
 
         input_topic = self.get_parameter('input_topic').value
         pruned_topic = self.get_parameter('pruned_topic').value
@@ -90,10 +96,20 @@ class Nav6DOptimizeTraj(Node):
         ref_msg = Path()
         ref_msg.header = msg.header
         ref_msg.poses = [self.point_to_pose(msg.header.frame_id, p) for p in samples]
+
+        if self.force_start_from_last_state and self.last_state_pose is not None and ref_msg.poses:
+            ref_msg.poses[0].pose = self.last_state_pose.pose
+
         self.reference_pub.publish(ref_msg)
 
+        prev_ref_idx = self.ref_idx
         self.reference_path = ref_msg.poses
-        self.ref_idx = self.find_resume_index(self.reference_path, self.last_state_pose)
+        if self.resume_on_replan:
+            resume_idx = self.find_resume_index(self.reference_path, self.last_state_pose)
+            min_idx = max(0, prev_ref_idx - max(0, self.resume_max_backtrack_points))
+            self.ref_idx = min(len(self.reference_path) - 1, max(resume_idx, min_idx))
+        else:
+            self.ref_idx = 0
 
         self.get_logger().info(
             f'A*: {len(raw)} -> prune: {len(pruned)} -> reference: {len(ref_msg.poses)}; '
@@ -114,13 +130,9 @@ class Nav6DOptimizeTraj(Node):
         self.ref_idx += 1
 
     def find_resume_index(self, path: List[PoseStamped], last_pose: Optional[PoseStamped]) -> int:
-<<<<<<< codex/modify-nav6d_node-for-real-world-testing-ynktbx
         if not path or last_pose is None:
-=======
-        if not path:
-            return 0
-        if last_pose is None:
->>>>>>> main
+        if not path or last_pose is None:
+
             return 0
 
         best_idx = 0
@@ -130,15 +142,13 @@ class Nav6DOptimizeTraj(Node):
             if d < best_dist:
                 best_dist = d
                 best_idx = i
-<<<<<<< codex/modify-nav6d_node-for-real-world-testing-ynktbx
 
         # If the nearest point is at the tail of the new path, restart from index 0
         # so repeated replans still replay visibly in RViz instead of immediately finishing.
         tail_start = max(0, len(path) - max(1, self.resume_tail_restart_points))
         if best_idx >= tail_start:
             return 0
-=======
->>>>>>> main
+
         return best_idx
 
     def allocate_segment_times(self, points: List[Point3]) -> List[float]:
