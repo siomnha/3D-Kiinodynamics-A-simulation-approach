@@ -1,5 +1,5 @@
 import math
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import rclpy
 from geometry_msgs.msg import PoseStamped
@@ -19,7 +19,7 @@ class Nav6DOptimizeTraj(Node):
         self.declare_parameter('pruned_topic', '/planning/pruned_path')
         self.declare_parameter('reference_topic', '/trajectory/reference')
         self.declare_parameter('state_topic', '/trajectory/state')
-        self.declare_parameter('pose_topic', '/space_cobot/pose')
+        self.declare_parameter('pose_topic', '/trajectory/reference_pose')
 
         self.declare_parameter('min_point_distance', 0.15)
         self.declare_parameter('rdp_epsilon', 0.25)
@@ -60,6 +60,7 @@ class Nav6DOptimizeTraj(Node):
 
         self.reference_path: List[PoseStamped] = []
         self.ref_idx = 0
+        self.last_state_pose: Optional[PoseStamped] = None
         self.timer = self.create_timer(0.05, self.publish_state_step)
 
         self.get_logger().info(
@@ -90,10 +91,11 @@ class Nav6DOptimizeTraj(Node):
         self.reference_pub.publish(ref_msg)
 
         self.reference_path = ref_msg.poses
-        self.ref_idx = 0
+        self.ref_idx = self.find_resume_index(self.reference_path, self.last_state_pose)
 
         self.get_logger().info(
-            f'A*: {len(raw)} -> prune: {len(pruned)} -> reference: {len(ref_msg.poses)}'
+            f'A*: {len(raw)} -> prune: {len(pruned)} -> reference: {len(ref_msg.poses)}; '
+            f'resume_idx={self.ref_idx}'
         )
 
     def publish_state_step(self) -> None:
@@ -106,7 +108,23 @@ class Nav6DOptimizeTraj(Node):
         out.pose = src.pose
         self.state_pub.publish(out)
         self.pose_pub.publish(out)
+        self.last_state_pose = out
         self.ref_idx += 1
+
+    def find_resume_index(self, path: List[PoseStamped], last_pose: Optional[PoseStamped]) -> int:
+        if not path:
+            return 0
+        if last_pose is None:
+            return 0
+
+        best_idx = 0
+        best_dist = float('inf')
+        for i, p in enumerate(path):
+            d = self.pose_distance(last_pose, p)
+            if d < best_dist:
+                best_dist = d
+                best_idx = i
+        return best_idx
 
     def allocate_segment_times(self, points: List[Point3]) -> List[float]:
         times: List[float] = []
