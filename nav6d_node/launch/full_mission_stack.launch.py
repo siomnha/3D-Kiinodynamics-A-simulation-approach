@@ -104,6 +104,8 @@ def generate_launch_description():
             'max_acceleration': 1.5,
             'time_scale': 1.15,
             'corner_time_gain': 0.35,
+            'resume_on_replan': True,
+            'resume_max_backtrack_points': 2,
         }]
     )
 
