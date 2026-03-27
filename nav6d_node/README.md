@@ -26,3 +26,5 @@ Before flight, set:
 
 See `nav6d_node/REAL_WORLD_RUN_COMMANDS.md` for complete commands, including
 `ardupilot_mavros_setpoint_bridge` in `mode=state` and `mode=path`.
+That runbook also includes the full real-flight pipeline from loading Octomap
+snapshot `shit1.bt` to MAVROS setpoint flight.

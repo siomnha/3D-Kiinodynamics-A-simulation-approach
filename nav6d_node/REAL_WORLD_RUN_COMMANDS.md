@@ -1,6 +1,8 @@
-# Real-world run commands (Vicon + nav6d + MAVROS + ArduPilot)
+# Real-world run commands (Octomap + Vicon + nav6d + MAVROS + ArduPilot)
 
 This runbook starts all required parts for indoor testing.
+It includes the full flying pipeline from loading your Octomap snapshot (`shit1.bt`)
+to streaming setpoints through MAVROS.
 
 ## 0) Build and source workspace
 ```bash
@@ -10,7 +12,20 @@ colcon build --symlink-install
 source install/setup.bash
 ```
 
-## 1) Start Vicon bridge (Terminal A)
+## 1) Start Octomap server with your site snapshot (Terminal A)
+`shit1.bt` is the map snapshot of your real flying environment.
+
+```bash
+source /opt/ros/humble/setup.bash
+source ~/ros2_ws/install/setup.bash
+
+ros2 run octomap_server octomap_server_node --ros-args \
+  -p octomap_path:=/workspace/3D-Kiinodynamics-A-simulation-approach/shit1.bt
+```
+
+If your file is in another location, replace the `octomap_path`.
+
+## 2) Start Vicon bridge (Terminal B)
 Use your real Vicon host and target subject/segment names.
 ```bash
 source /opt/ros/humble/setup.bash
@@ -25,7 +40,7 @@ ros2 run vicon_bridge vicon_bridge --ros-args \
   -p tf_namespace:="vicon"
 ```
 
-## 2) Start MAVROS connected to ArduPilot (Terminal B)
+## 3) Start MAVROS connected to ArduPilot (Terminal C)
 Example for UDP SITL/companion link (change FCU URL for hardware).
 ```bash
 source /opt/ros/humble/setup.bash
@@ -34,7 +49,7 @@ source ~/ros2_ws/install/setup.bash
 ros2 launch mavros apm.launch fcu_url:=udp://:14550@127.0.0.1:14555
 ```
 
-## 3) Launch nav6d real-world stack (Terminal C)
+## 4) Launch nav6d real-world stack (Terminal D)
 This launches:
 - static map-vicon alignment tf
 - tf_to_pose_bridge (Vicon TF -> /space_cobot/pose)
@@ -49,7 +64,7 @@ source ~/ros2_ws/install/setup.bash
 ros2 launch nav6d_sim real_world_vicon_stack.launch.py
 ```
 
-## 4) Start setpoint bridge in `mode=state` (Terminal D, recommended first)
+## 5) Start setpoint bridge in `mode=state` (Terminal E, recommended first)
 `mode=state` forwards `/trajectory/state` directly to MAVROS local position setpoints.
 ```bash
 source /opt/ros/humble/setup.bash
@@ -62,7 +77,7 @@ ros2 run nav6d_sim ardupilot_mavros_setpoint_bridge --ros-args \
   -p setpoint_topic:=/mavros/setpoint_position/local
 ```
 
-## 5) Alternative: setpoint bridge in `mode=path` (Terminal D alternative)
+## 6) Alternative: setpoint bridge in `mode=path` (Terminal E alternative)
 `mode=path` follows `/trajectory/reference` with lookahead and arrival-radius logic.
 ```bash
 source /opt/ros/humble/setup.bash
@@ -77,14 +92,18 @@ ros2 run nav6d_sim ardupilot_mavros_setpoint_bridge --ros-args \
   -p setpoint_topic:=/mavros/setpoint_position/local
 ```
 
-## 6) Mission/arming workflow
+## 7) End-to-end flying pipeline (what makes the drone fly)
 1. Push mission waypoints via MAVROS/MAVProxy so mission_manager receives `/mavros/mission/waypoints`.
 2. Verify mission_manager is publishing `/nav6d/goal`.
-3. Start setpoint stream first (Terminal D already running).
-4. Arm and switch to external setpoint-accepting flight mode (GUIDED/OFFBOARD depending on FCU config).
+3. nav6d planner computes path from current pose + Octomap (`shit1.bt` loaded in Terminal A).
+4. `nav_6d_optimize_traj` turns that path into `/trajectory/reference` and `/trajectory/state`.
+5. Start setpoint stream first (Terminal E already running).
+6. Arm and switch to external setpoint-accepting flight mode (GUIDED/OFFBOARD depending on FCU config).
+7. ArduPilot follows `/mavros/setpoint_position/local`.
 
-## 7) Quick checks
+## 8) Quick checks
 ```bash
+ros2 topic echo /octomap_full --once
 ros2 topic hz /space_cobot/pose
 ros2 topic echo /nav6d/goal --once
 ros2 topic echo /trajectory/state --once
