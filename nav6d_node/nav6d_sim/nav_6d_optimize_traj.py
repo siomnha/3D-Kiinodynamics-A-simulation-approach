@@ -19,7 +19,7 @@ class Nav6DOptimizeTraj(Node):
         self.declare_parameter('pruned_topic', '/planning/pruned_path')
         self.declare_parameter('reference_topic', '/trajectory/reference')
         self.declare_parameter('state_topic', '/trajectory/state')
-        self.declare_parameter('pose_topic', '/space_cobot/pose')
+        self.declare_parameter('pose_topic', '/trajectory/reference_pose')
 
         self.declare_parameter('min_point_distance', 0.15)
         self.declare_parameter('rdp_epsilon', 0.25)

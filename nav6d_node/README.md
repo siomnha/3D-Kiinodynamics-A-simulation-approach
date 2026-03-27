@@ -18,3 +18,9 @@ Before flight, set:
 - `tf_to_pose_bridge.child_frame` to your actual Vicon segment frame (for example `vicon/iris/iris`)
 - `mission_manager.origin_lat/lon/alt` when MAVROS missions are global (lat/lon/alt)
 - optional `map_world_tf_bridge` static offset if your map frame differs from Vicon world origin.
+
+> Update: `nav_6d_optimize_traj` reference pose output is `/trajectory/reference_pose`.
+> For real-world tests, keep `/space_cobot/pose` fed by Vicon (`tf_to_pose_bridge`).
+
+See `nav6d_node/REAL_WORLD_RUN_COMMANDS.md` for complete commands, including
+`ardupilot_mavros_setpoint_bridge` in `mode=state` and `mode=path`.
