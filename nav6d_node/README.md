@@ -21,6 +21,8 @@ Before flight, set:
 
 > Update: `nav_6d_optimize_traj` reference pose output is `/trajectory/reference_pose`.
 > For real-world tests, keep `/space_cobot/pose` fed by Vicon (`tf_to_pose_bridge`).
+> The optimizer now resumes from the nearest point on a newly generated trajectory
+> (instead of restarting from index 0), which reduces visible backward jumps.
 
 See `nav6d_node/REAL_WORLD_RUN_COMMANDS.md` for complete commands, including
 `ardupilot_mavros_setpoint_bridge` in `mode=state` and `mode=path`.
