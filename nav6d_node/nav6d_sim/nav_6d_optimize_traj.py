@@ -33,6 +33,7 @@ class Nav6DOptimizeTraj(Node):
         self.declare_parameter('corner_time_gain', 0.35)
         self.declare_parameter('sample_dt', 0.08)
         self.declare_parameter('min_segment_time', 0.08)
+        self.declare_parameter('resume_tail_restart_points', 2)
 
         self.min_point_distance = self.get_parameter('min_point_distance').value
         self.rdp_epsilon = self.get_parameter('rdp_epsilon').value
@@ -44,6 +45,7 @@ class Nav6DOptimizeTraj(Node):
         self.corner_time_gain = self.get_parameter('corner_time_gain').value
         self.sample_dt = self.get_parameter('sample_dt').value
         self.min_segment_time = self.get_parameter('min_segment_time').value
+        self.resume_tail_restart_points = int(self.get_parameter('resume_tail_restart_points').value)
 
         input_topic = self.get_parameter('input_topic').value
         pruned_topic = self.get_parameter('pruned_topic').value
@@ -112,9 +114,13 @@ class Nav6DOptimizeTraj(Node):
         self.ref_idx += 1
 
     def find_resume_index(self, path: List[PoseStamped], last_pose: Optional[PoseStamped]) -> int:
+<<<<<<< codex/modify-nav6d_node-for-real-world-testing-ynktbx
+        if not path or last_pose is None:
+=======
         if not path:
             return 0
         if last_pose is None:
+>>>>>>> main
             return 0
 
         best_idx = 0
@@ -124,6 +130,15 @@ class Nav6DOptimizeTraj(Node):
             if d < best_dist:
                 best_dist = d
                 best_idx = i
+<<<<<<< codex/modify-nav6d_node-for-real-world-testing-ynktbx
+
+        # If the nearest point is at the tail of the new path, restart from index 0
+        # so repeated replans still replay visibly in RViz instead of immediately finishing.
+        tail_start = max(0, len(path) - max(1, self.resume_tail_restart_points))
+        if best_idx >= tail_start:
+            return 0
+=======
+>>>>>>> main
         return best_idx
 
     def allocate_segment_times(self, points: List[Point3]) -> List[float]:
