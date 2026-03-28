@@ -145,3 +145,15 @@ source ~/planner_ws/install/setup.bash
 ```
 
 Then retry the `ros2 run` command.
+
+
+If the traceback references `find_resume_index` around line ~134 in `build/nav6d_sim/nav6d_sim/nav_6d_optimize_traj.py`, your source tree is on an older/broken revision. Update the repo in `~/planner_ws/src/...` first, then rebuild:
+
+```bash
+cd ~/planner_ws/src/<your_repo>
+git fetch
+git pull
+cd ~/planner_ws
+rm -rf build/nav6d_sim install/nav6d_sim log
+colcon build --symlink-install --packages-select nav6d_sim
+```
