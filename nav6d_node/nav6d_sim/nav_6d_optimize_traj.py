@@ -93,24 +93,30 @@ class Nav6DOptimizeTraj(Node):
         ref_msg.poses = [self.point_to_pose(msg.header.frame_id, p) for p in samples]
         self.reference_pub.publish(ref_msg)
 
-        if self.stitch_replans and self.reference_path and self.ref_idx < len(self.reference_path):
-            remaining = self.reference_path[self.ref_idx :]
-            overlap = max(0, self.stitch_overlap_points)
-            stitched_tail = ref_msg.poses[overlap:] if overlap < len(ref_msg.poses) else []
-            self.reference_path = remaining + stitched_tail
-            self.ref_idx = 0
-            out_count = len(self.reference_path)
-            mode = 'stitched'
-        else:
-            self.reference_path = ref_msg.poses
-            self.ref_idx = 0
-            out_count = len(ref_msg.poses)
-            mode = 'reset'
+        self.reference_path, mode = self.update_playback_path(ref_msg.poses)
+        self.ref_idx = 0
 
         self.get_logger().info(
             f'A*: {len(raw)} -> prune: {len(pruned)} -> reference: {len(ref_msg.poses)}; '
-            f'playback={mode} points={out_count}'
+            f'playback={mode} points={len(self.reference_path)}'
         )
+
+    def update_playback_path(self, new_path: List[PoseStamped]) -> Tuple[List[PoseStamped], str]:
+        if not self.stitch_replans:
+            return new_path, 'reset'
+        if not self.reference_path:
+            return new_path, 'reset'
+        if self.ref_idx >= len(self.reference_path):
+            return new_path, 'reset'
+
+        overlap = max(0, self.stitch_overlap_points)
+        remaining = self.reference_path[self.ref_idx :]
+        if overlap < len(new_path):
+            stitched_tail = new_path[overlap:]
+        else:
+            stitched_tail = []
+
+        return remaining + stitched_tail, 'stitched'
 
     def publish_state_step(self) -> None:
         if not self.reference_path or self.ref_idx >= len(self.reference_path):
