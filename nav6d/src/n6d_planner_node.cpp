@@ -139,9 +139,12 @@ class N6dPlanner : public rclcpp::Node {
             std::bind(&N6dPlanner::goal_callback, this, std::placeholders::_1));
 
         // Publishers
-        path_pub_ = create_publisher<nav_msgs::msg::Path>(path_topic, 10);
+        const auto latched_qos =
+            rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local();
+        path_pub_ = create_publisher<nav_msgs::msg::Path>(path_topic, latched_qos);
         if (debug_markers_) {
-            marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(marker_topic_, 10);
+            marker_pub_ =
+                create_publisher<visualization_msgs::msg::MarkerArray>(marker_topic_, latched_qos);
             RCLCPP_INFO(get_logger(), "Debug markers enabled on %s.", marker_topic_.c_str());
         }
 

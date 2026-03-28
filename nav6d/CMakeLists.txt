@@ -31,6 +31,18 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 
+
+add_executable(clean_bt src/clean_bt.cpp)
+ament_target_dependencies(
+  clean_bt
+  octomap
+)
+
+install(
+  TARGETS clean_bt
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 add_executable(n6d_force_controller src/n6d_force_controller_node.cpp)
 ament_target_dependencies(
   n6d_force_controller

@@ -239,3 +239,17 @@ are:
    * A `Path` display on `/nav6d/planner/path`
    * A `MarkerArray` display on `/nav6d/planner/path_markers`
    * Fixed frame: `map`
+
+
+### BT cleanup utility
+A helper executable is provided to binarize and re-threshold an OctoMap `.bt` file:
+
+```bash
+ros2 run nav6d clean_bt input.bt output.bt [occupancy_threshold]
+```
+
+Example (threshold 0.7):
+
+```bash
+ros2 run nav6d clean_bt /path/map.bt /path/map_clean.bt 0.7
+```
