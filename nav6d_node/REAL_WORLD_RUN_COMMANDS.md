@@ -129,3 +129,19 @@ ros2 run nav6d_sim nav_6d_optimize_traj --ros-args   -p input_topic:=/mission_ma
 
 This bypasses per-waypoint goal switching and is intended for pre-validated waypoint routes.
 
+
+
+## Troubleshooting: `IndentationError` when running Python nodes
+If `ros2 run nav6d_sim ...` throws an `IndentationError` from a file under `~/planner_ws/build/nav6d_sim/...`, your workspace likely has stale generated Python.
+
+Run:
+
+```bash
+cd ~/planner_ws
+rm -rf build/nav6d_sim install/nav6d_sim log
+colcon build --symlink-install --packages-select nav6d_sim
+source /opt/ros/humble/setup.bash
+source ~/planner_ws/install/setup.bash
+```
+
+Then retry the `ros2 run` command.

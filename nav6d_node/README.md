@@ -28,3 +28,13 @@ See `nav6d_node/REAL_WORLD_RUN_COMMANDS.md` for complete commands, including
 `ardupilot_mavros_setpoint_bridge` in `mode=state` and `mode=path`.
 That runbook also includes the full real-flight pipeline from loading Octomap
 snapshot `shit1.bt` to MAVROS setpoint flight.
+
+
+## Continuous mission trajectory mode (no stop-and-go)
+If you want one continuous trajectory over all mission waypoints, enable continuous mode in `mission_manager` and feed that path to the optimizer:
+
+```bash
+ros2 run nav6d_sim mission_manager --ros-args   -p continuous_mission_mode:=true   -p continuous_path_topic:=/mission_manager/continuous_path
+
+ros2 run nav6d_sim nav_6d_optimize_traj --ros-args   -p input_topic:=/mission_manager/continuous_path
+```
