@@ -20,6 +20,8 @@ class MissionManager(Node):
         self.declare_parameter('goal_frame_id', 'map')
         self.declare_parameter('arrival_threshold_m', 0.6)
         self.declare_parameter('progress_check_period_s', 0.25)
+        self.declare_parameter('continuous_mission_mode', False)
+        self.declare_parameter('continuous_path_topic', '/mission_manager/continuous_path')
 
         # Local-map origin used when MAVROS waypoints are global (lat/lon/alt)
         self.declare_parameter('origin_lat', 0.0)
@@ -35,6 +37,8 @@ class MissionManager(Node):
         self.goal_frame_id = str(self.get_parameter('goal_frame_id').value)
         self.arrival_threshold_m = float(self.get_parameter('arrival_threshold_m').value)
         self.progress_check_period_s = float(self.get_parameter('progress_check_period_s').value)
+        self.continuous_mission_mode = bool(self.get_parameter('continuous_mission_mode').value)
+        self.continuous_path_topic = str(self.get_parameter('continuous_path_topic').value)
 
         self.origin_lat = float(self.get_parameter('origin_lat').value)
         self.origin_lon = float(self.get_parameter('origin_lon').value)
@@ -54,12 +58,14 @@ class MissionManager(Node):
 
         self.create_subscription(PoseStamped, self.pose_topic, self.pose_callback, 10)
         self.goal_pub = self.create_publisher(PoseStamped, self.goal_topic, 10)
+        self.continuous_path_pub = self.create_publisher(Path, self.continuous_path_topic, 10)
         self.timer = self.create_timer(max(0.05, self.progress_check_period_s), self.check_progress)
 
         self.get_logger().info(
             f'Mission manager ready. path={self.waypoints_topic}, '
             f'mavros={self.mavros_waypoints_topic if self._mavros_enabled else "disabled"}, '
-            f'pose={self.pose_topic}, goal={self.goal_topic}, frame={self.goal_frame_id}'
+            f'pose={self.pose_topic}, goal={self.goal_topic}, frame={self.goal_frame_id}, '
+            f'continuous_mode={self.continuous_mission_mode}'
         )
 
     def init_mavros_subscription(self) -> bool:
@@ -81,6 +87,9 @@ class MissionManager(Node):
         self.waypoints = [pose.pose for pose in msg.poses]
         self.current_index = 0
         self.get_logger().info(f'Received {len(self.waypoints)} path waypoint(s) from {self.waypoints_topic}.')
+        if self.continuous_mission_mode:
+            self.publish_continuous_path()
+            return
         self.send_next_goal()
 
     def mavros_waypoints_callback(self, msg) -> None:
@@ -118,6 +127,9 @@ class MissionManager(Node):
         self.get_logger().info(
             f'Received {len(self.waypoints)} MAVROS waypoint(s) from {self.mavros_waypoints_topic}.'
         )
+        if self.continuous_mission_mode:
+            self.publish_continuous_path()
+            return
         self.send_next_goal()
 
     def llh_to_local_enu(self, lat_deg: float, lon_deg: float, alt_m: float) -> Optional[Tuple[float, float, float]]:
@@ -138,6 +150,27 @@ class MissionManager(Node):
         up = alt_m - self.origin_alt
         return (east, north, up)
 
+
+    def publish_continuous_path(self) -> None:
+        if not self.waypoints:
+            return
+
+        msg = Path()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = self.goal_frame_id
+        msg.poses = []
+
+        for pose in self.waypoints:
+            ps = PoseStamped()
+            ps.header = msg.header
+            ps.pose = pose
+            msg.poses.append(ps)
+
+        self.continuous_path_pub.publish(msg)
+        self.get_logger().info(
+            f'Published continuous mission path with {len(msg.poses)} waypoint(s) on {self.continuous_path_topic}'
+        )
+
     def pose_callback(self, msg: PoseStamped) -> None:
         self.current_pose = msg.pose
 
@@ -155,6 +188,8 @@ class MissionManager(Node):
         self.get_logger().info(f'Sending waypoint index={self.current_index}')
 
     def check_progress(self) -> None:
+        if self.continuous_mission_mode:
+            return
         if self.current_pose is None or self.current_index >= len(self.waypoints):
             return
 
