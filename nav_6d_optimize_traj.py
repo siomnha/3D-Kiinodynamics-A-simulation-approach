@@ -1,5 +1,5 @@
 import math
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import rclpy
 from geometry_msgs.msg import PoseStamped
@@ -19,7 +19,7 @@ class Nav6DOptimizeTraj(Node):
         self.declare_parameter('pruned_topic', '/planning/pruned_path')
         self.declare_parameter('reference_topic', '/trajectory/reference')
         self.declare_parameter('state_topic', '/trajectory/state')
-        self.declare_parameter('pose_topic', '/trajectory/reference_pose')
+        self.declare_parameter('pose_topic', '/space_cobot/pose')
 
         self.declare_parameter('min_point_distance', 0.15)
         self.declare_parameter('rdp_epsilon', 0.25)
@@ -33,8 +33,6 @@ class Nav6DOptimizeTraj(Node):
         self.declare_parameter('corner_time_gain', 0.35)
         self.declare_parameter('sample_dt', 0.08)
         self.declare_parameter('min_segment_time', 0.08)
-        self.declare_parameter('stitch_replans', True)
-        self.declare_parameter('stitch_overlap_points', 1)
 
         self.min_point_distance = self.get_parameter('min_point_distance').value
         self.rdp_epsilon = self.get_parameter('rdp_epsilon').value
@@ -46,8 +44,6 @@ class Nav6DOptimizeTraj(Node):
         self.corner_time_gain = self.get_parameter('corner_time_gain').value
         self.sample_dt = self.get_parameter('sample_dt').value
         self.min_segment_time = self.get_parameter('min_segment_time').value
-        self.stitch_replans = bool(self.get_parameter('stitch_replans').value)
-        self.stitch_overlap_points = int(self.get_parameter('stitch_overlap_points').value)
 
         input_topic = self.get_parameter('input_topic').value
         pruned_topic = self.get_parameter('pruned_topic').value
@@ -64,7 +60,6 @@ class Nav6DOptimizeTraj(Node):
 
         self.reference_path: List[PoseStamped] = []
         self.ref_idx = 0
-        self.last_state_pose: Optional[PoseStamped] = None
         self.timer = self.create_timer(0.05, self.publish_state_step)
 
         self.get_logger().info(
@@ -92,29 +87,13 @@ class Nav6DOptimizeTraj(Node):
         ref_msg = Path()
         ref_msg.header = msg.header
         ref_msg.poses = [self.point_to_pose(msg.header.frame_id, p) for p in samples]
-
-        if self.force_start_from_last_state and self.last_state_pose is not None and ref_msg.poses:
-            ref_msg.poses[0].pose = self.last_state_pose.pose
-
         self.reference_pub.publish(ref_msg)
 
-        if self.stitch_replans and self.reference_path and self.ref_idx < len(self.reference_path):
-            remaining = self.reference_path[self.ref_idx :]
-            overlap = max(0, self.stitch_overlap_points)
-            stitched_tail = ref_msg.poses[overlap:] if overlap < len(ref_msg.poses) else []
-            self.reference_path = remaining + stitched_tail
-            self.ref_idx = 0
-            out_count = len(self.reference_path)
-            mode = 'stitched'
-        else:
-            self.reference_path = ref_msg.poses
-            self.ref_idx = 0
-            out_count = len(ref_msg.poses)
-            mode = 'reset'
+        self.reference_path = ref_msg.poses
+        self.ref_idx = 0
 
         self.get_logger().info(
-            f'A*: {len(raw)} -> prune: {len(pruned)} -> reference: {len(ref_msg.poses)}; '
-            f'playback={mode} points={out_count}'
+            f'A*: {len(raw)} -> prune: {len(pruned)} -> reference: {len(ref_msg.poses)}'
         )
 
     def publish_state_step(self) -> None:
@@ -127,30 +106,7 @@ class Nav6DOptimizeTraj(Node):
         out.pose = src.pose
         self.state_pub.publish(out)
         self.pose_pub.publish(out)
-        self.last_state_pose = out
         self.ref_idx += 1
-
-    def find_resume_index(self, path: List[PoseStamped], last_pose: Optional[PoseStamped]) -> int:
-        if not path or last_pose is None:
-        if not path or last_pose is None:
-
-            return 0
-
-        best_idx = 0
-        best_dist = float('inf')
-        for i, p in enumerate(path):
-            d = self.pose_distance(last_pose, p)
-            if d < best_dist:
-                best_dist = d
-                best_idx = i
-
-        # If the nearest point is at the tail of the new path, restart from index 0
-        # so repeated replans still replay visibly in RViz instead of immediately finishing.
-        tail_start = max(0, len(path) - max(1, self.resume_tail_restart_points))
-        if best_idx >= tail_start:
-            return 0
-
-        return best_idx
 
     def allocate_segment_times(self, points: List[Point3]) -> List[float]:
         times: List[float] = []
