@@ -5,6 +5,7 @@ import rclpy
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
 from rclpy.node import Node
+from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
 
 Point3 = Tuple[float, float, float]
 
@@ -33,6 +34,8 @@ class Nav6DOptimizeTraj(Node):
         self.declare_parameter('corner_time_gain', 0.35)
         self.declare_parameter('sample_dt', 0.08)
         self.declare_parameter('min_segment_time', 0.08)
+        self.declare_parameter('stitch_replans', True)
+        self.declare_parameter('stitch_overlap_points', 1)
 
         self.min_point_distance = self.get_parameter('min_point_distance').value
         self.rdp_epsilon = self.get_parameter('rdp_epsilon').value
@@ -44,6 +47,8 @@ class Nav6DOptimizeTraj(Node):
         self.corner_time_gain = self.get_parameter('corner_time_gain').value
         self.sample_dt = self.get_parameter('sample_dt').value
         self.min_segment_time = self.get_parameter('min_segment_time').value
+        self.stitch_replans = bool(self.get_parameter('stitch_replans').value)
+        self.stitch_overlap_points = int(self.get_parameter('stitch_overlap_points').value)
 
         input_topic = self.get_parameter('input_topic').value
         pruned_topic = self.get_parameter('pruned_topic').value
@@ -51,8 +56,15 @@ class Nav6DOptimizeTraj(Node):
         state_topic = self.get_parameter('state_topic').value
         pose_topic = self.get_parameter('pose_topic').value
 
-        self.pruned_pub = self.create_publisher(Path, pruned_topic, 10)
-        self.reference_pub = self.create_publisher(Path, reference_topic, 10)
+        latched_path_qos = QoSProfile(
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=1,
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+        )
+
+        self.pruned_pub = self.create_publisher(Path, pruned_topic, latched_path_qos)
+        self.reference_pub = self.create_publisher(Path, reference_topic, latched_path_qos)
         self.state_pub = self.create_publisher(PoseStamped, state_topic, 10)
         self.pose_pub = self.create_publisher(PoseStamped, pose_topic, 10)
 
@@ -89,12 +101,30 @@ class Nav6DOptimizeTraj(Node):
         ref_msg.poses = [self.point_to_pose(msg.header.frame_id, p) for p in samples]
         self.reference_pub.publish(ref_msg)
 
-        self.reference_path = ref_msg.poses
+        self.reference_path, mode = self.update_playback_path(ref_msg.poses)
         self.ref_idx = 0
 
         self.get_logger().info(
-            f'A*: {len(raw)} -> prune: {len(pruned)} -> reference: {len(ref_msg.poses)}'
+            f'A*: {len(raw)} -> prune: {len(pruned)} -> reference: {len(ref_msg.poses)}; '
+            f'playback={mode} points={len(self.reference_path)}'
         )
+
+    def update_playback_path(self, new_path: List[PoseStamped]) -> Tuple[List[PoseStamped], str]:
+        if not self.stitch_replans:
+            return new_path, 'reset'
+        if not self.reference_path:
+            return new_path, 'reset'
+        if self.ref_idx >= len(self.reference_path):
+            return new_path, 'reset'
+
+        overlap = max(0, self.stitch_overlap_points)
+        remaining = self.reference_path[self.ref_idx :]
+        if overlap < len(new_path):
+            stitched_tail = new_path[overlap:]
+        else:
+            stitched_tail = []
+
+        return remaining + stitched_tail, 'stitched'
 
     def publish_state_step(self) -> None:
         if not self.reference_path or self.ref_idx >= len(self.reference_path):
