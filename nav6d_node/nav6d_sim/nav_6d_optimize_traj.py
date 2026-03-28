@@ -33,10 +33,8 @@ class Nav6DOptimizeTraj(Node):
         self.declare_parameter('corner_time_gain', 0.35)
         self.declare_parameter('sample_dt', 0.08)
         self.declare_parameter('min_segment_time', 0.08)
-        self.declare_parameter('resume_on_replan', False)
-        self.declare_parameter('resume_tail_restart_points', 2)
-        self.declare_parameter('resume_max_backtrack_points', 2)
-        self.declare_parameter('force_start_from_last_state', True)
+        self.declare_parameter('stitch_replans', True)
+        self.declare_parameter('stitch_overlap_points', 1)
 
         self.min_point_distance = self.get_parameter('min_point_distance').value
         self.rdp_epsilon = self.get_parameter('rdp_epsilon').value
@@ -48,10 +46,8 @@ class Nav6DOptimizeTraj(Node):
         self.corner_time_gain = self.get_parameter('corner_time_gain').value
         self.sample_dt = self.get_parameter('sample_dt').value
         self.min_segment_time = self.get_parameter('min_segment_time').value
-        self.resume_on_replan = bool(self.get_parameter('resume_on_replan').value)
-        self.resume_tail_restart_points = int(self.get_parameter('resume_tail_restart_points').value)
-        self.resume_max_backtrack_points = int(self.get_parameter('resume_max_backtrack_points').value)
-        self.force_start_from_last_state = bool(self.get_parameter('force_start_from_last_state').value)
+        self.stitch_replans = bool(self.get_parameter('stitch_replans').value)
+        self.stitch_overlap_points = int(self.get_parameter('stitch_overlap_points').value)
 
         input_topic = self.get_parameter('input_topic').value
         pruned_topic = self.get_parameter('pruned_topic').value
@@ -102,18 +98,23 @@ class Nav6DOptimizeTraj(Node):
 
         self.reference_pub.publish(ref_msg)
 
-        prev_ref_idx = self.ref_idx
-        self.reference_path = ref_msg.poses
-        if self.resume_on_replan:
-            resume_idx = self.find_resume_index(self.reference_path, self.last_state_pose)
-            min_idx = max(0, prev_ref_idx - max(0, self.resume_max_backtrack_points))
-            self.ref_idx = min(len(self.reference_path) - 1, max(resume_idx, min_idx))
-        else:
+        if self.stitch_replans and self.reference_path and self.ref_idx < len(self.reference_path):
+            remaining = self.reference_path[self.ref_idx :]
+            overlap = max(0, self.stitch_overlap_points)
+            stitched_tail = ref_msg.poses[overlap:] if overlap < len(ref_msg.poses) else []
+            self.reference_path = remaining + stitched_tail
             self.ref_idx = 0
+            out_count = len(self.reference_path)
+            mode = 'stitched'
+        else:
+            self.reference_path = ref_msg.poses
+            self.ref_idx = 0
+            out_count = len(ref_msg.poses)
+            mode = 'reset'
 
         self.get_logger().info(
             f'A*: {len(raw)} -> prune: {len(pruned)} -> reference: {len(ref_msg.poses)}; '
-            f'resume_idx={self.ref_idx}'
+            f'playback={mode} points={out_count}'
         )
 
     def publish_state_step(self) -> None:

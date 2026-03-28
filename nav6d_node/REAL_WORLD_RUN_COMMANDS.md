@@ -114,3 +114,18 @@ ros2 topic echo /mavros/setpoint_position/local --once
 ## Notes
 - `nav_6d_optimize_traj` now publishes a reference pose on `/trajectory/reference_pose` (not `/space_cobot/pose`) to avoid conflicting with Vicon truth pose.
 - Keep `/space_cobot/pose` as the real vehicle pose source from Vicon.
+
+
+## Optional: continuous mission trajectory from all waypoints (no stop-and-go)
+If you want one continuous trajectory over all waypoints, enable continuous mode in `mission_manager` and feed that path directly to the optimizer:
+
+```bash
+# mission_manager publishes full mission path once per mission update
+ros2 run nav6d_sim mission_manager --ros-args   -p continuous_mission_mode:=true   -p continuous_path_topic:=/mission_manager/continuous_path
+
+# optimizer consumes the full mission path directly
+ros2 run nav6d_sim nav_6d_optimize_traj --ros-args   -p input_topic:=/mission_manager/continuous_path
+```
+
+This bypasses per-waypoint goal switching and is intended for pre-validated waypoint routes.
+

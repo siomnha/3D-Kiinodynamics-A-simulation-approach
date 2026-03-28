@@ -55,7 +55,6 @@ def generate_launch_description():
             'max_acceleration': 1.0,
             'time_scale': 1.2,
             'corner_time_gain': 0.4,
-            'resume_on_replan': True,
             'pose_topic': '/trajectory/reference_pose',
         }],
     )
